@@ -1,0 +1,39 @@
+---
+title: "Graduate Outcomes Summary (synthetic data)"
+output:
+  pdf_document:
+    toc: false
+params:
+  data_path: "data/clean_survey.csv"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(dplyr); library(ggplot2)
+source("R/data_functions.R")
+d <- load_outcomes(params$data_path)
+k <- kpis(d)
+```
+
+All figures come from a synthetic survey of `r format(k$respondents, big.mark = ",")` fictional graduates at 12 fictional institutions.
+
+**Employed within 6 months (weighted):** `r sprintf("%.1f%%", 100 * k$employment_rate)`. **Median hourly wage:** `r sprintf("$%.2f", k$median_wage)`.
+
+## By program area
+
+```{r t1}
+t <- summarise_by(d, "program_area")
+knitr::kable(transmute(t, `Program area` = program_area, n = n, `Employed (%)` = round(100 * employment_rate, 1), `Median wage ($)` = round(median_wage, 2)))
+```
+
+```{r p1, fig.height=3, fig.width=6}
+ggplot(t, aes(reorder(program_area, employment_rate), employment_rate)) + geom_col(fill = "#2b6cb0") + coord_flip() +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) + labs(x = NULL, y = "Employed within 6 months") + theme_minimal()
+```
+
+## By institution
+
+```{r t2}
+ti <- summarise_by(d, "institution_id")
+knitr::kable(transmute(ti, Institution = institution_id, n = n, `Employed (%)` = round(100 * employment_rate, 1), `Median wage ($)` = round(median_wage, 2)))
+```

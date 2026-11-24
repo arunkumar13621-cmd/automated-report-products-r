@@ -1,0 +1,53 @@
+---
+title: "Graduate outcomes: `r params$institution`"
+subtitle: "Synthetic data for practice. Fictional institution."
+output:
+  html_document:
+    toc: false
+    theme: default
+params:
+  institution: "PTI01"
+  data_path: "data/clean_survey.csv"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(dplyr); library(ggplot2)
+source("R/data_functions.R")
+d_all <- load_outcomes(params$data_path)
+d <- filter_outcomes(d_all, institutions = params$institution)
+k <- kpis(d); k_all <- kpis(d_all)
+pct <- function(x) ifelse(is.na(x), "suppressed", sprintf("%.1f%%", 100 * x))
+```
+
+## Summary
+
+* **Respondents:** `r format(k$respondents, big.mark = ",")` (all institutions: `r format(k_all$respondents, big.mark = ",")`)
+* **Employed within 6 months (weighted):** `r pct(k$employment_rate)` (all institutions: `r pct(k_all$employment_rate)`)
+* **Median hourly wage:** `r ifelse(is.na(k$median_wage), "suppressed", sprintf("$%.2f", k$median_wage))`
+* **Mean quality rating (1 to 5):** `r ifelse(is.na(k$mean_quality), "suppressed", sprintf("%.2f", k$mean_quality))`
+
+## By program area
+
+```{r table}
+t <- summarise_by(d, "program_area")
+shown <- t |> transmute(`Program area` = program_area, Respondents = n,
+  `Employed within 6 months` = pct(employment_rate),
+  `Median wage` = ifelse(is.na(median_wage), "suppressed", sprintf("$%.2f", median_wage)),
+  `Mean quality` = ifelse(is.na(mean_quality), "suppressed", sprintf("%.2f", mean_quality)))
+knitr::kable(shown)
+```
+
+```{r plot, fig.height=3.6, fig.width=7}
+ggplot(t, aes(reorder(program_area, employment_rate), employment_rate, fill = suppressed)) + geom_col() +
+  geom_text(aes(label = paste0("n=", n)), hjust = -0.1, size = 3.3) + coord_flip() +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  scale_fill_manual(values = c(`FALSE` = "#2b6cb0", `TRUE` = "grey70"), guide = "none") +
+  labs(x = NULL, y = "Employed within 6 months (weighted)") + theme_minimal(base_size = 12)
+```
+
+## Notes
+
+* Groups with fewer than `r MIN_CELL` respondents are suppressed.
+* Employment rates use weights so each institution counts in proportion to its number of graduates.
+* All records are synthetic. No real institution, person or survey result is shown.
